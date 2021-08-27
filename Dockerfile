@@ -12,6 +12,7 @@ COPY ./requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./python-service.py ./
+COPY ./mailService.py ./
 COPY ./SME+CORP+огрн.xls ./
 
 CMD [ "python", "./python-service.py" ]
