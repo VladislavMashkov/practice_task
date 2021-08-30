@@ -1,3 +1,4 @@
+import email
 import smtplib
 import os
 import mimetypes
@@ -10,39 +11,41 @@ addressFrom: str = os.environ['MAIL_USER']
 password: str = os.environ['MAIL_PASSWORD']
 
 def send_email(addressTo: str, msgSubject: str, msgText: str, file: str) -> None:
-    msg = MIMEMultipart()
-    msg['From'] = addressFrom
-    msg['To'] = addressTo
-    msg['Subject'] = msgSubject
-    body = msgText
+    msg: email.mime.multipart.MIMEMultipart = MIMEMultipart()
+    msg['From']: str = addressFrom
+    msg['To']: str = addressTo
+    msg['Subject']: str = msgSubject
+    body: str = msgText
     msg.attach(MIMEText(body, 'plain'))
 
     process_attachement(msg, file)
 
-    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server: smtplib.SMTP_SSL = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.login(addressFrom, password)
     server.send_message(msg)
     server.quit()
 
 
-def process_attachement(msg, file: str) -> None:
+def process_attachement(msg: email.mime.multipart.MIMEMultipart, file: str) -> None:
     if os.path.isfile(file):
         attach_file(msg, file)
 
 
-def attach_file(msg, filepath) -> None:
-    filename = os.path.basename(filepath)
-    ctype, encoding = mimetypes.guess_type(filepath)
+def attach_file(msg: email.mime.multipart.MIMEMultipart, filepath: str) -> None:
+    filename: str = os.path.basename(filepath)
+    ctype: str = mimetypes.guess_type(filepath)[0]
+    encoding: str = mimetypes.guess_type(filepath)[1]
     if ctype is None or encoding is not None:
         ctype = 'application/octet-stream'
-    maintype, subtype = ctype.split('/', 1)
+    maintype: str = ctype.split('/', 1)[0]
+    subtype: str = ctype.split('/', 1)[1]
     if maintype == 'text':
         with open(filepath) as fp:
-            file = MIMEText(fp.read(), _subtype=subtype)
+            file: email.mime.text = MIMEText(fp.read(), _subtype=subtype)
             fp.close()
     else:
         with open(filepath, 'rb') as fp:
-            file = MIMEBase(maintype, subtype)
+            file: email.mime.base = MIMEBase(maintype, subtype)
             file.set_payload(fp.read())
             fp.close()
             encoders.encode_base64(file)
