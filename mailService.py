@@ -36,7 +36,7 @@ def attach_file(msg: email.mime.multipart.MIMEMultipart, filepath: str) -> None:
     ctype: str = mimetypes.guess_type(filepath)[0]
     encoding: str = mimetypes.guess_type(filepath)[1]
     if ctype is None or encoding is not None:
-        ctype = 'application/octet-stream'
+        ctype: str = 'application/octet-stream'
     maintype: str = ctype.split('/', 1)[0]
     subtype: str = ctype.split('/', 1)[1]
     if maintype == 'text':
