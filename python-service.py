@@ -1,17 +1,20 @@
+import _io
 import os
+import openpyxl
 import requests
+import urllib3
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 import pyexcel as p
 from openpyxl import load_workbook
-import csv
 from mailService import send_email
-
+from cssWorkerService import makeCsvFile, writeRowIntoCsv
 
 addressTo: str = os.environ['MAIL_DESTINATION']
 mailSubject: str = os.environ['MAIL_SUBJECT']
 mailText: str = os.environ['MAIL_TEXT']
 resultFile: str = os.environ['RESULT_FILE_NAME']
+
 
 headers: dict = {'connection': 'keep-alive',
                  'cache-control': 'max-age=0',
@@ -34,21 +37,21 @@ headers: dict = {'connection': 'keep-alive',
 
 class OrganizationRecord:
     def __init__(self, number: int, fullName: str, innValue: int, ogrnValue: int):
-        self.number = number
-        self.fullName = fullName
-        self.innValue = str(innValue)
-        self.ogrnValue = str(ogrnValue)
-        self.category = 'Значение'
-        self.location = 'Значение'
-        self.totalAmountOfTransfers = 'Значение'
-        self.totalVolumeOfBankCommissions = 'Значение'
-        self.amountSubsidies = 'Значение'
+        self.number: int = number
+        self.fullName: str = fullName
+        self.innValue: str = str(innValue)
+        self.ogrnValue: str = str(ogrnValue)
+        self.category: str = 'Значение'
+        self.location: str = 'Значение'
+        self.totalAmountOfTransfers: str = 'Значение'
+        self.totalVolumeOfBankCommissions: str = 'Значение'
+        self.amountSubsidies: str = 'Значение'
 
     def writeInfoAboutCategory(self, category: str) -> None:
-        self.category = category
+        self.category: str = category
 
     def writeInfoAboutLocation(self, locationList: list) -> None:
-        self.location = ' '.join(locationList)
+        self.location: str = ' '.join(locationList)
 
     def returnOrganizationInfo(self) -> list:
         return [self.number,
@@ -62,44 +65,28 @@ class OrganizationRecord:
                 self.amountSubsidies]
 
 
-def makeCsvFile() -> None:
-    header: list = ['№ п/п',
-                    'Полное наименование субъекта МСП',
-                    'ИНН субъекта МСП',
-                    'ОГРН субъекта МСП (при наличии)',
-                    'Категория субъекта МСП (микро, малое, среднее)',
-                    'Место нахождения (место жительства) субъекта МСП (субъект Российской Федерации)',
-                    'Суммарный размер переводов, осуществленных физическими лицами в пользу субъектов МСП в СБП, рублей',
-                    'Суммарный объём банковских комиссий за переводы денежных средств, осуществленных физическими лицами в '
-                    'пользу субъектов МСП в СБП, рублей',
-                    'Размер субсидий за отчётный период, рублей']
-    with open(resultFile, 'w', encoding='UTF8', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-
-
 def makeRequest(innValue: int) -> requests.models.Response:
-    session = requests.Session()
-    retry = Retry(connect=3, backoff_factor=0.5)
-    adapter = HTTPAdapter(max_retries=retry)
+    session: requests.sessions.Session = requests.Session()
+    retry: urllib3.util.retry.Retry = Retry(connect=3, backoff_factor=0.5)
+    adapter: requests.adapters.HTTPAdapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
-    response = session.get('https://rmsp.nalog.ru/report.xlsx?mode=inn-list&page=1&innList=' + str(
+    response: requests.models.Response = session.get('https://rmsp.nalog.ru/report.xlsx?mode=inn-list&page=1&innList=' + str(
         innValue) + '&pageSize=10&sortField=NAME_EX&sort=ASC',
                            headers=headers)
     return response
 
 
 def saveDataFromRequest(content: bytes) -> None:
-    output = open('test.xlsx', 'wb')
+    output: _io.BufferedWriter = open('test.xlsx', 'wb')
     output.write(content)
     output.close()
 
 
 def loadDataFromFile() -> list:
-    workbook = load_workbook(filename='test.xlsx', read_only=False)
-    worksheet = workbook.active
-    data = []
+    workbook: openpyxl.workbook.workbook.Workbook = load_workbook(filename='test.xlsx', read_only=False)
+    worksheet: openpyxl.worksheet.worksheet.Worksheet = workbook.active
+    data: list = []
     if worksheet is None:
         return data
     for curRow in worksheet.rows:
@@ -115,18 +102,12 @@ def findRowInData(innValue: str, ogrnValue: str, data: list) -> list:
     return []
 
 
-def writeRowIntoCsv(curOrganization) -> None:
-    with open('result.csv', 'a', encoding='UTF8', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(curOrganization.returnOrganizationInfo())
-
-
 def main():
     makeCsvFile()
     p.save_book_as(file_name='SME+CORP+огрн.xls',
                    dest_file_name='SME+CORP+огрн.xlsx')
-    workbook = load_workbook(filename='SME+CORP+огрн.xlsx', read_only=True)
-    worksheet = workbook.active
+    workbook: openpyxl.workbook.workbook.Workbook = load_workbook(filename='SME+CORP+огрн.xlsx', read_only=True)
+    worksheet: openpyxl.workbook.workbook.Worksheet = workbook.active
     for row in worksheet.rows:
         if row[3].value == "C_INN":
             continue
@@ -146,7 +127,7 @@ def main():
         dataFromFile: list = loadDataFromFile()
         if not dataFromFile:
             print("По заданным параметрам не найдено сведений в едином реестре субъектов малого и среднего "
-                  "предпринимательства. ИНН", currentOrganization.innValue)
+                  "предпринимательства. ИНН", row[3].value)
             writeRowIntoCsv(currentOrganization)
             continue
 
